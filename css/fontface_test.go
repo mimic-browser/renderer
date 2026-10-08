@@ -134,7 +134,7 @@ func TestParseFontFacesNesting(t *testing.T) {
 	@media (min-width: 5000px) { @font-face { font-family: Wide; src: url(w.ttf); } }
 	@layer base { @font-face { font-family: L; src: url(l.ttf); } }
 	@supports (color: light-dark(red, blue)) { @font-face { font-family: S; src: url(s.ttf); } }
-	@supports (display: grid) { @font-face { font-family: Unheld; src: url(u.ttf); } }
+	@supports (display: subgrid) { @font-face { font-family: Unheld; src: url(u.ttf); } }
 	/* @font-face { font-family: Commented; src: url(x.ttf); } */`
 	faces := ParseFontFaces(src, Media{Type: Print, Width: 1024})
 	var got []string

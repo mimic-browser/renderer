@@ -396,14 +396,25 @@ func TestParseGridTemplateAreas(t *testing.T) {
 
 func TestParseGridTemplateAreasRejects(t *testing.T) {
 	for _, v := range []string{
-		``,                    // no rows
-		`"a b" "c"`,           // ragged
-		`"unterminated`,       // missing close quote
-		`"" ""`,               // zero columns
+		``,              // no rows
+		`"a b" "c"`,     // ragged
+		`"unterminated`, // missing close quote
+		`"" ""`,         // zero columns
 	} {
 		if got, ok := parseGridTemplateAreas(v); ok {
 			t.Errorf("areas(%q) unexpectedly ok = %v", v, got)
 		}
+	}
+}
+
+func TestGridTemplateShorthand(t *testing.T) {
+	rows, columns, areas, ok := parseGridTemplate(`min-content 1fr / 12.25rem minmax(0,1fr)`, 16)
+	if !ok || len(rows) != 2 || len(columns) != 2 || len(areas) != 0 {
+		t.Fatalf("rows=%v columns=%v areas=%v ok=%v", rows, columns, areas, ok)
+	}
+	rows, columns, areas, ok = parseGridTemplate(`'title .' min-content 'content side' 1fr / minmax(0,59.25rem) min-content`, 16)
+	if !ok || len(rows) != 2 || len(columns) != 2 || len(areas) != 2 || areas[1][1] != "side" {
+		t.Fatalf("named rows=%v columns=%v areas=%v ok=%v", rows, columns, areas, ok)
 	}
 }
 

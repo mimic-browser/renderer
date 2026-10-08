@@ -9,6 +9,31 @@ import (
 	"strings"
 )
 
+// CSS absolute font-size keywords use the browser's medium size as their
+// reference, rather than the parent element's computed font size.
+func absoluteFontSizeKeyword(v string) (float64, bool) {
+	switch v {
+	case "xx-small":
+		return 9, true
+	case "x-small":
+		return 10, true
+	case "small":
+		return 13.333333333, true
+	case "medium":
+		return 16, true
+	case "large":
+		return 18, true
+	case "x-large":
+		return 24, true
+	case "xx-large":
+		return 32, true
+	case "xxx-large":
+		return 48, true
+	default:
+		return 0, false
+	}
+}
+
 // mediaWidthRe captures min-width/max-width features in a media query, in
 // either px or rem — Tailwind v4's default breakpoints (sm/md/lg/xl/2xl) are
 // all expressed in rem ("min-width:80rem"), not px, and rejecting the unit
@@ -184,7 +209,8 @@ func ParseStylesheet(src string) []Rule {
 // cascade to evaluate per-element once real layout geometry is available (see
 // container.go) — @container style(...) queries are not supported and are
 // skipped wholesale, like any other unrecognised at-rule (@font-face,
-// @keyframes, @supports, @import, ...). Malformed rules are skipped
+// @keyframes, @import, ...). Recognised @supports conditions are evaluated;
+// unrecognised conditions are false. Malformed rules are skipped
 // defensively.
 func ParseStylesheetVW(src string, vw float64) []Rule {
 	return ParseStylesheetMedia(src, Media{Width: vw})
@@ -256,11 +282,7 @@ func parseRules(src string, m Media) []Rule {
 					rules = append(rules, inner...)
 				}
 			case strings.HasPrefix(lower, "@supports"):
-				// See supportsConditionHolds's own doc comment: this engine answers
-				// only the one specific feature test real CSS ships (whether it
-				// supports light-dark(), which it genuinely does) honestly; any
-				// other condition still drops the block wholesale, unchanged from
-				// before this existed.
+				// Include only feature queries backed by this renderer.
 				if supportsConditionHolds(lower[len("@supports"):]) {
 					rules = append(rules, parseRules(body, m)...)
 				}
@@ -696,7 +718,9 @@ func (s *Style) apply(d Declaration, emRef float64, parent *Style) {
 			s.BackdropFilters = fs
 		}
 	case "font-size":
-		if l, ok := parseLength(v, emRef); ok && !l.Auto {
+		if size, ok := absoluteFontSizeKeyword(lv); ok {
+			s.FontSize = size
+		} else if l, ok := parseLength(v, emRef); ok && !l.Auto {
 			if l.IsPercent {
 				s.FontSize = l.Percent * emRef
 			} else {
@@ -1248,6 +1272,12 @@ func (s *Style) apply(d Declaration, emRef float64, parent *Style) {
 	case "grid-template-columns":
 		if t, ok := parseTrackList(v, emRef); ok {
 			s.GridTemplateColumns = t
+		}
+	case "grid-template":
+		if rows, columns, areas, ok := parseGridTemplate(v, emRef); ok {
+			s.GridTemplateRows = rows
+			s.GridTemplateColumns = columns
+			s.GridTemplateAreas = areas
 		}
 	case "grid-template-rows":
 		if t, ok := parseTrackList(v, emRef); ok {

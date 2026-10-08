@@ -118,7 +118,7 @@ func TestParseStylesheetMediaQueries(t *testing.T) {
 	@supports (display:grid) { div { display: grid } }
 	`
 	// At vw=1024: min-width:640 matches, max-width:639 does not, print never,
-	// screen matches, @supports skipped.
+	// Screen and the supported grid feature query both match.
 	rules := ParseStylesheetVW(css, 1024)
 	got := map[string]string{}
 	for _, r := range rules {
@@ -132,13 +132,13 @@ func TestParseStylesheetMediaQueries(t *testing.T) {
 	if got["color"] != "blue" {
 		t.Error("screen media rule should apply")
 	}
-	if _, ok := got["display"]; ok {
-		t.Error("@supports should be skipped")
+	if got["display"] != "grid" {
+		t.Error("supported grid @supports should apply")
 	}
 	// The max-width:639 (mobile) and print rules must be excluded: exactly the
 	// two matching blocks (infobox + a) remain.
-	if len(rules) != 2 {
-		t.Errorf("expected 2 matching media rules, got %d: %+v", len(rules), rules)
+	if len(rules) != 3 {
+		t.Errorf("expected 3 matching rules, got %d: %+v", len(rules), rules)
 	}
 
 	// At a narrow viewport the mobile rule wins instead.
@@ -266,7 +266,7 @@ func TestParseStylesheetOtherAtRulesStillSkipped(t *testing.T) {
 	css := `
 	@font-face { font-family: X; src: url(x) }
 	@keyframes spin { from { transform: none } to { transform: none } }
-	@supports (display: grid) { .g { display: grid } }
+	@supports (display: subgrid) { .g { display: subgrid } }
 	`
 	rules := ParseStylesheetVW(css, 1024)
 	if len(rules) != 0 {
@@ -285,8 +285,8 @@ func TestParseStylesheetSupportsLightDark(t *testing.T) {
 	css := `
 	@supports (color: light-dark(red, red)) { .a { color: red } }
 	@supports not (color: light-dark(tan, tan)) { .b { background: blue } }
-	@supports (display: grid) { .c { font-weight: bold } }
-	@supports not (display: grid) { .d { text-align: center } }
+		@supports (display: grid) { .c { font-weight: bold } }
+		@supports not (display: grid) { .d { text-align: center } }
 	`
 	got := declValues(ParseStylesheetVW(css, 1024))
 	if got["color"] != "red" {
@@ -295,11 +295,25 @@ func TestParseStylesheetSupportsLightDark(t *testing.T) {
 	if v, ok := got["background"]; ok {
 		t.Errorf("negative light-dark() @supports should be excluded, got background=%q", v)
 	}
-	if v, ok := got["font-weight"]; ok {
-		t.Errorf("unrecognised @supports condition should still be excluded, got font-weight=%q", v)
+	if got["font-weight"] != "bold" {
+		t.Errorf("supported grid @supports should apply, got %+v", got)
 	}
-	if got["text-align"] != "center" {
-		t.Errorf("negated unrecognised @supports condition should be included (not of a false holds), got %+v", got)
+	if _, ok := got["text-align"]; ok {
+		t.Errorf("negated supported grid @supports should be excluded, got %+v", got)
+	}
+}
+
+func TestSupportsGridAndMasks(t *testing.T) {
+	for condition, want := range map[string]bool{
+		"(display:grid)":     true,
+		"not (display:grid)": false,
+		"(display:subgrid)":  false,
+		"((-webkit-mask-image:none) or (mask-image:none))":     true,
+		"not ((-webkit-mask-image:none) or (mask-image:none))": false,
+	} {
+		if got := supportsConditionHolds(condition); got != want {
+			t.Errorf("%q = %v, want %v", condition, got, want)
+		}
 	}
 }
 

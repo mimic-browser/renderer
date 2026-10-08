@@ -872,7 +872,8 @@ func paintItem(dst *image.RGBA, pp *painter.PixelPainter, it *layout.InlineItem,
 	// minimal `<h1>text<a><svg style="visibility:hidden">…</a></h1>` repro
 	// confirms this is a real, independent defect on its own: any inline
 	// image/icon with an explicit `visibility:hidden` painted anyway.
-	if it.Style != nil && it.Style.Visibility != css.VisibilityVisible {
+	if it.Style != nil && (it.Style.Visibility != css.VisibilityVisible ||
+		(it.Style.HasOpacity && it.Style.Opacity <= 0)) {
 		return
 	}
 	if it.Image != nil {
@@ -1660,7 +1661,10 @@ func paintRotated(dst *image.RGBA, box *layout.Box, f *Fonts, imgs map[*dom.Node
 	if bx.Empty() {
 		return
 	}
-	tmp := image.NewRGBA(image.Rect(0, 0, dst.Rect.Dx(), bx.Max.Y))
+	// Descendants can paint below the rotated box's border box. Account for
+	// their extent before painting into the temporary image (upstream v0.5.1).
+	tmpH := subtreeExtent(box).Intersect(dst.Rect).Max.Y
+	tmp := image.NewRGBA(image.Rect(0, 0, dst.Rect.Dx(), tmpH))
 	tpp := painter.NewPixelPainter(tmp.Pix, tmp.Rect.Dx(), tmp.Rect.Dy())
 	paintBoxContent(tmp, tpp, box, f, imgs, bgImgs, clip)
 	src := image.NewRGBA(image.Rect(0, 0, bx.Dx(), bx.Dy()))

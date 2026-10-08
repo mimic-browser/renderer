@@ -241,6 +241,64 @@ func parseGridPlacement(v string) (start, end GridLine) {
 	return start, end
 }
 
+// parseGridTemplate handles the common rows / columns shorthand, including
+// quoted area rows with an optional track size after each row. Invalid values
+// leave all three longhands unchanged.
+func parseGridTemplate(v string, emRef float64) (rows, columns []TrackSize, areas [][]string, ok bool) {
+	parts := splitTopLevelSep(v, '/')
+	if len(parts) != 2 {
+		return nil, nil, nil, false
+	}
+	columns, ok = parseTrackList(strings.TrimSpace(parts[1]), emRef)
+	if !ok {
+		return nil, nil, nil, false
+	}
+	left := strings.TrimSpace(parts[0])
+	if !strings.ContainsAny(left, `"'`) {
+		rows, ok = parseTrackList(left, emRef)
+		return rows, columns, nil, ok
+	}
+	for left != "" {
+		if left[0] != '\'' && left[0] != '"' {
+			return nil, nil, nil, false
+		}
+		quote := left[0]
+		end := strings.IndexByte(left[1:], quote)
+		if end < 0 {
+			return nil, nil, nil, false
+		}
+		names := strings.Fields(left[1 : end+1])
+		if len(names) == 0 || (len(areas) > 0 && len(names) != len(areas[0])) {
+			return nil, nil, nil, false
+		}
+		for i, name := range names {
+			if name == "." {
+				names[i] = ""
+			}
+		}
+		areas = append(areas, names)
+		left = strings.TrimSpace(left[end+2:])
+		row := TrackSize{Kind: TrackAuto}
+		if left != "" && left[0] != '\'' && left[0] != '"' {
+			parts := splitTopLevel(left)
+			if len(parts) == 0 {
+				return nil, nil, nil, false
+			}
+			var valid bool
+			row, valid = parseTrackSize(parts[0], emRef)
+			if !valid {
+				return nil, nil, nil, false
+			}
+			left = strings.TrimSpace(left[len(parts[0]):])
+		}
+		rows = append(rows, row)
+	}
+	if len(areas) == 0 || len(areas[0]) != len(columns) {
+		return nil, nil, nil, false
+	}
+	return rows, columns, areas, true
+}
+
 // parseGridTemplateAreas parses a grid-template-areas value (a sequence of
 // quoted strings) into a rectangular row-major grid of area names. A "." token
 // is an empty cell (stored as ""). Returns false if the rows are ragged or no
@@ -375,4 +433,3 @@ func applyGridArea(s *Style, v string) {
 	s.GridRowEnd = get(2)
 	s.GridColumnEnd = get(3)
 }
-

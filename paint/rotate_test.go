@@ -4,12 +4,38 @@
 package paint
 
 import (
+	"image"
+	"image/color"
 	"testing"
 
 	"github.com/go-webengine/engine/css"
 	"github.com/go-webengine/engine/dom"
 	"github.com/go-webengine/engine/layout"
 )
+
+func TestRotateOverhangingImageDoesNotCrash(t *testing.T) {
+	dst := white(100, 80)
+	imgNode := &dom.Node{Type: dom.Element, Tag: "img"}
+	src := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 4; x++ {
+			src.SetRGBA(x, y, color.RGBA{G: 180, A: 255})
+		}
+	}
+	root := &layout.Box{
+		Node: &dom.Node{Type: dom.Element, Tag: "div"}, Style: &css.Style{}, W: 100, H: 80,
+		Children: []*layout.Box{{
+			Node: &dom.Node{Type: dom.Element, Tag: "div"}, Style: &css.Style{RotateDeg: 10}, W: 60, H: 40,
+			Children: []*layout.Box{{
+				Node: &dom.Node{Type: dom.Element, Tag: "div"}, Style: &css.Style{}, X: 10, Y: 35, W: 20, H: 20,
+				Lines: []*layout.LineBox{{X: 10, Y: 35, W: 20, H: 20, Items: []*layout.InlineItem{
+					{Image: imgNode, X: 10, Y: 37, ImgW: 4, ImgH: 4, Width: 4, LineHeight: 4},
+				}}},
+			}},
+		}},
+	}
+	PaintFull(dst, root, NewFonts(), map[*dom.Node]image.Image{imgNode: src}, nil)
+}
 
 // TestRotateNinetyDegreesIsClockwise covers the real confirmed trigger
 // (round 145): tailwindcss.com's own P3-colours diagonal swatch labels,
