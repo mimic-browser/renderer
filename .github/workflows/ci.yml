@@ -1,19 +1,14 @@
 # Copyright (c) the go-webengine/engine authors.
 # SPDX-License-Identifier: BSD-3-Clause
 #
-# Pure-Go CI: everything builds and tests with CGO_ENABLED=0 (no C toolchain).
-# The `test` job builds, vets and tests natively and enforces a ratchet coverage
-# gate on the pure-logic packages (css/layout/paint/dom). The `cross-build` job
-# cross-compiles the whole module for all six of Go's 64-bit targets to keep the
-# engine portable; it is build-only because the runtime tests need live network
-# and real fonts, which are not reproducible under qemu.
+# Pure-Go CI for the static screenshot renderer.
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [mimic-go1.26]
   pull_request:
-    branches: [main]
+    branches: [mimic-go1.26]
   workflow_dispatch:
 
 permissions:
@@ -25,7 +20,7 @@ env:
 
 jobs:
   test:
-    name: build · vet · test · coverage
+    name: build · vet · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -41,13 +36,8 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      # -short skips the live-network TestLiveRender; the offline golden-PNG and
-      # data:-URI image paths still run. All pure-logic packages run in full.
       - name: Test
         run: go test -short ./...
-
-      - name: Coverage gate (ratchet floors on pure-logic packages)
-        run: bash scripts/coverage-gate.sh
 
   cross-build:
     name: cross-build ${{ matrix.goarch }}

@@ -1,7 +1,7 @@
-# Mimic renderer fork
+# Maintained renderer branch
 
-This repository is a GitHub fork of [go-webengine/engine](https://github.com/go-webengine/engine). It retains the upstream BSD-3-Clause license and Git history. The `mimic-go1.26` branch starts from upstream v0.4.3 and is maintained for Mimic's approximate CDP screenshots on Go 1.26.4. The Go module path remains `github.com/go-webengine/engine` so existing imports can use a module replacement.
+This branch starts from upstream `go-webengine/engine` v0.4.3 and keeps its BSD-3-Clause license and history. It contains only the packages imported by Mimic's static screenshot pipeline: `css`, `dom`, `layout`, `paint`, and `static`. JavaScript execution, module bundling, navigation, pagination, browser-like fetching, and their dependencies are removed.
 
-The branch includes the rotated-content buffer fix from upstream v0.5.1 and the `klauspost/compress` v1.18.7 dependency update from v0.5.0. It also fixes grid shorthand and `@supports` parsing, SVG rasterization, absolute and inline layout, font-size keywords, styled form controls, and literal CSS generated text used by Mimic's screenshot adapter.
+The static path uses the same CSS, layout, and paint implementations as the earlier `DisableJS` path. A pixel regression test records representative outputs from that path, including external CSS, SVG, generated text, grid layout, and form controls. The upstream v0.5.1 rotated-content buffer fix is retained. Other local fixes improve grid shorthand, `@supports`, SVG rasterization, layout, controls, and literal CSS generated text.
 
-The renderer produces approximate images. Its output is neither a Chrome screenshot nor Mimic's script-visible layout state.
+`static.RenderHTML` remains an approximate painter. It does not define Mimic's DOM or layout semantics, execute page scripts, or produce a Chrome screenshot.
